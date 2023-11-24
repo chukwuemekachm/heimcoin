@@ -1,7 +1,8 @@
 import os
 
 from flask import Flask
-from heimcoin import address, node
+from socket import socket, gethostname, gethostbyname
+from heimcoin import address, network
 
 def create_app(test_config=None):
     app = Flask(__name__, instance_relative_config=True)
@@ -20,7 +21,7 @@ def create_app(test_config=None):
     except OSError:
         pass
 
-    app.register_blueprint(address.address_module)
-    app.register_blueprint(node.node_module)
+    app.register_blueprint(address.address_blueprint)
+    app.register_blueprint(network.network_blueprint)
 
     return app
