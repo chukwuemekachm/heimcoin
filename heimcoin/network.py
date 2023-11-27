@@ -1,6 +1,7 @@
 from flask import current_app, Blueprint, json, request
 from urllib.parse import urlparse
 from heimcoin.address import Address, derive_pass_phrase_key_pair
+from heimcoin.node import message_peer, MessageEvent
 
 __node_address = Address()
 __network_nodes = set()
@@ -50,4 +51,21 @@ def get_nodes():
     return json.jsonify({
         'success': True,
         'nodes': list(nodes),
+    }), 200
+
+
+@network_blueprint.route('/ping', methods = ['POST'])
+def ping_nodes():
+    nodes = list(get_network_nodes())
+
+    for node in nodes:
+        message_peer(
+            node,
+            { 'data': f'Hello {node}' },
+            MessageEvent.PING_PEER.value,
+        )
+
+    return json.jsonify({
+        'success': True,
+        'nodes': nodes,
     }), 200

@@ -1,8 +1,8 @@
 import os
 
 from flask import Flask
-from socket import socket, gethostname, gethostbyname
-from heimcoin import address, network
+from socketio import Server, WSGIApp
+from heimcoin import address, network, node
 
 def create_app(test_config=None):
     app = Flask(__name__, instance_relative_config=True)
@@ -23,5 +23,6 @@ def create_app(test_config=None):
 
     app.register_blueprint(address.address_blueprint)
     app.register_blueprint(network.network_blueprint)
+    app.wsgi_app = WSGIApp(node.socket_io, app.wsgi_app)
 
     return app
