@@ -2,7 +2,7 @@ import os
 
 from flask import Flask
 from socketio import Server, WSGIApp
-from heimcoin import address, network, node
+from heimcoin import address, network, node, blockchain
 
 def create_app(test_config=None):
     app = Flask(__name__, instance_relative_config=True)
@@ -23,6 +23,10 @@ def create_app(test_config=None):
 
     app.register_blueprint(address.address_blueprint)
     app.register_blueprint(network.network_blueprint)
+    app.register_blueprint(blockchain.blockchain_blueprint)
     app.wsgi_app = WSGIApp(node.socket_io, app.wsgi_app)
+
+    with app.app_context():
+        blockchain.blockchain.mine_genesis_block()
 
     return app

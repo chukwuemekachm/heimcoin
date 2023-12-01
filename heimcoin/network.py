@@ -3,7 +3,6 @@ from urllib.parse import urlparse
 from heimcoin.address import Address, derive_pass_phrase_key_pair
 from heimcoin.node import message_peer, MessageEvent
 
-__node_address = Address()
 __network_nodes = set()
 network_blueprint = Blueprint('network', __name__, url_prefix='/api/v1/network')
 
@@ -20,30 +19,46 @@ def remove_network_node(node):
     __network_nodes.remove(node)
 
 def get_node_address():
+    node_pass_phrase = current_app.config['HEIM_COIN_PRIVATE_KEY_PASS_PHRASE']
+    node_key_pair = derive_pass_phrase_key_pair(node_pass_phrase)
+    __node_address = __node_address = Address(
+        node_key_pair['public_key'],
+        node_key_pair['private_key'],
+        node_key_pair['private_key_obj'],
+        node_key_pair['public_key_obj'],
+        node_key_pair['address'],
+    )
     return __node_address
 
 @network_blueprint.route('/node-address', methods = ['GET'])
-def get_node_address():
-    node_pass_phrase = current_app.config['HEIM_COIN_PRIVATE_KEY_PASS_PHRASE']
-    node_key_pair = derive_pass_phrase_key_pair(node_pass_phrase)
+def get_network_node_address():
+    __node_address = get_node_address()
 
     return json.jsonify({
         'success': True,
-        'node_address': node_key_pair['public_key']
+        'node_address': __node_address.wallet_address
     }), 200
 
 @network_blueprint.route('/', methods = ['POST'])
 def add_nodes():
     json_data = request.get_json()
-    node_list = []
-    for address in json_data['nodes']:
-        node_address = add_network_node(address)
-        node_list.append(node_address)
+
+    if ('nodes' in json_data):
+        for address in json_data['nodes']:
+            add_network_node(address)
+
+        return json.jsonify({
+            'success': True,
+            'nodes': list(__network_nodes),
+        }), 201
 
     return json.jsonify({
-        'success': True,
-        'nodes': node_list,
-    }), 201
+        'success': False,
+        'nodes': list(__network_nodes),
+        'message': 'Your nodes could not be added to the network',
+    }), 400
+
+
 
 @network_blueprint.route('/', methods = ['GET'])
 def get_nodes():
