@@ -28,16 +28,16 @@ def derive_pass_phrase_key_pair(pass_phrase):
     }
 
 def verify_signature(signature, message, public_key):
-    message_hash = hashlib.sha256(json_dumps(message).encode())
+    message_hash = hashlib.sha256(json_dumps(message).encode()).hexdigest().encode()
     public_key_obj = get_public_key_obj(public_key)
     return public_key_obj.verify(
-        signature,
+        signature.encode('IBM852'),
         message_hash,
     )
 
 def sign_message(message, private_key):
     message_hash = hashlib.sha256(json_dumps(message).encode()).hexdigest().encode()
-    return private_key.sign(message_hash)
+    return private_key.sign_deterministic(message_hash).decode('IBM852')
 
 class Address:
     private_key = None

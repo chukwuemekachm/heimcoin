@@ -1,10 +1,8 @@
-import random
 import hashlib
 
-from flask import current_app, Blueprint, json, request, app
-from datetime import datetime
+from flask import current_app, Blueprint, json, request
 from json import dumps as json_dumps
-from heimcoin.transaction import get_transaction_list, clear_transaction_list, Transaction, Output
+from heimcoin.transaction import get_transaction_list, clear_transaction_list, Transaction, create_output
 from heimcoin.address import derive_pass_phrase_key_pair, sign_message
 from heimcoin.block import Block
 
@@ -19,7 +17,7 @@ class Blockchain:
                 1,
                 0,
                 None,
-                [self.create_block_reward(self.__index_block_reward_address).get_data(True)],
+                [self.create_block_reward(self.__index_block_reward_address)],
                 self.__index_block_reward_address
             )
         )
@@ -32,7 +30,7 @@ class Blockchain:
 
         block_reward = Transaction(
             self.__node_address['public_key'],
-            [Output(miner_address, self.get_block_reward_amount()).get_data()],
+            [create_output(miner_address, self.get_block_reward_amount())],
             [],
         )
         block_reward.set_signature(
@@ -58,7 +56,7 @@ class Blockchain:
             len(self.__chain) + 1,
             proof,
             previous_hash,
-            list(map(lambda t: t.get_data(True), transactions)),
+            transactions,
             miner_address,
         )
     
@@ -88,6 +86,16 @@ class Blockchain:
         clear_transaction_list()
 
         return block
+    
+    def wallet_transactions(self, wallet_address):
+        chain = self.__chain
+        wallet_address_outputs = []
+
+        block_transaction_list = list(map(lambda b: b.wallet_address_transactions(wallet_address), chain))
+        for block_transaction in block_transaction_list:
+            wallet_address_outputs.extend(block_transaction)
+
+        return wallet_address_outputs
 
 blockchain = Blockchain()
 blockchain_blueprint = Blueprint('blockchain', __name__, url_prefix='/api/v1/blockchain')
@@ -109,7 +117,7 @@ def mine_block():
     if (not json_data) or (not json_data['miner_address']):
         return json.jsonify({
             'success': False,
-            'key_pair': None,
+            'chain': None,
             'message': 'Provide a wallet address for the miner',
         }), 400
     
@@ -120,4 +128,23 @@ def mine_block():
         'success': True,
         'chain': list(map(lambda b: b.get_data(True), chain)),
         'length': len(chain),
+    }), 201
+
+@blockchain_blueprint.route('/wallet-transactions', methods = ['POST'])
+def wallet_transactions():
+    json_data = request.get_json(force=True)
+    
+    if (not json_data) or (not json_data['wallet_address']):
+        return json.jsonify({
+            'success': False,
+            'transactions': None,
+            'message': 'Provide a wallet address',
+        }), 400
+    
+    transactions = blockchain.wallet_transactions(json_data['wallet_address'])
+
+    return json.jsonify({
+        'success': True,
+        'transactions': transactions,
+        'length': len(transactions),
     }), 201

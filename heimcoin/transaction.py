@@ -7,20 +7,22 @@ import hashlib
 
 __transaction_list = []
 
-class Output:
-    __data = {
-        'trnx': None,
-        'receiver_address': None,
-        'receiver_amount': 0,
+def get_transaction_list():
+    return __transaction_list
+
+def clear_transaction_list():
+    return __transaction_list.clear()
+
+def add_transaction(transaction):
+    __transaction_list.append(transaction)
+    return __transaction_list
+
+def create_output(receiver_address, receiver_amount):
+    return {
+        'receiver_address': receiver_address,
+        'receiver_amount': receiver_amount,
+        'otrnx': uuid4().hex,
     }
-
-    def __init__(self, receiver_address, receiver_amount):
-        self.__data['receiver_address'] = receiver_address
-        self.__data['receiver_amount'] = receiver_amount
-        self.__data['trnx'] = uuid4().hex
-
-    def get_data(self):
-        return self.__data
 
 class Transaction:
     __data = {
@@ -35,7 +37,7 @@ class Transaction:
     __public_key_obj = None
 
     def get_data(self, include_meta=False):
-        if (include_meta):
+        if not include_meta:
             return {
                 'trnx': self.__data['trnx'],
                 'sender_public_key': self.__data['sender_public_key'],
@@ -51,7 +53,6 @@ class Transaction:
             'input_list': self.__data['input_list'],
             'time_stamp': self.__data['time_stamp'],
             'signature': self.__data['signature'],
-            'hash': self.__data_hash,
          }
 
     def hash_transaction(self):
@@ -75,21 +76,21 @@ class Transaction:
             return False
        
         return verify_signature(
-            self.__data['sender_public_key'],
+            self.__data['signature'],
             self.get_data(),
-            self.__data['signature']
+            self.__data['sender_public_key'],
         )
     
     def set_signature(self, signature):
         self.__data['signature'] = signature
 
+    def wallet_address_outputs(self, wallet_address):
+        output_list = []
 
-def get_transaction_list():
-    return __transaction_list
+        wallet_output_list = list(filter(
+            lambda o: o['receiver_address'] == wallet_address,
+            self.__data['output_list']
+        ))
+        output_list.extend(wallet_output_list)
 
-def clear_transaction_list():
-    return __transaction_list.clear()
-
-def add_transaction(transaction):
-    __transaction_list.append(transaction)
-    return __transaction_list
+        return output_list

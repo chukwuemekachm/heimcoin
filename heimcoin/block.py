@@ -33,18 +33,19 @@ class Block:
         self.hash_block()
 
     def get_data(self, include_meta=False):
-        if not include_meta:
-            return self.__data
-
         data = {
             'index': self.__data['index'],
             'timestamp': self.__data['timestamp'],
             'proof': self.__data['proof'],
             'previous_block_hash': self.__data['previous_block_hash'],
-            'transactions': self.__data['transactions'],
+            'transactions': list(map(lambda t: t.get_data(True), self.__data['transactions'])),
             'miner_address': self.__data['miner_address'],
             'node_address': self.__data['node_address'],
         }
+
+        if not include_meta:
+            return data
+    
         data['block_hash'] = self.__data_hash
         return data
     
@@ -55,6 +56,20 @@ class Block:
         return self.__data['index']
     
     def hash_block(self):
-        encoded_block = json_dumps(self.__data, sort_keys = True).encode()
+        encoded_block = json_dumps(self.get_data(), sort_keys = True).encode()
         self.__data_hash = hashlib.sha256(encoded_block).hexdigest()
+
+    def wallet_address_transactions(self, wallet_address):
+        transaction_outputs = []
+
+        transaction_list = list(map(
+            lambda transaction: transaction.wallet_address_outputs(wallet_address),
+            self.__data['transactions']
+        ))
+        for transaction in transaction_list:
+            transaction_outputs.extend(transaction)
+
+        return transaction_outputs
+
+
     
