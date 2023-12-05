@@ -2,6 +2,8 @@ from flask import current_app, Blueprint, json, request
 from urllib.parse import urlparse
 from heimcoin.address import Address, derive_pass_phrase_key_pair
 from heimcoin.node import message_peer, MessageEvent
+from heimcoin.decorators import validate_request
+import heimcoin.validation_schemas as validation_schemas
 
 __network_nodes = set()
 network_blueprint = Blueprint('network', __name__, url_prefix='/api/v1/network')
@@ -40,23 +42,17 @@ def get_network_node_address():
     }), 200
 
 @network_blueprint.route('/', methods = ['POST'])
+@validate_request(validation_schemas.add_node_validation_schema)
 def add_nodes():
     json_data = request.get_json()
 
-    if ('nodes' in json_data):
-        for address in json_data['nodes']:
-            add_network_node(address)
-
-        return json.jsonify({
-            'success': True,
-            'nodes': list(__network_nodes),
-        }), 201
+    for address in json_data['nodes']:
+        add_network_node(address)
 
     return json.jsonify({
-        'success': False,
+        'success': True,
         'nodes': list(__network_nodes),
-        'message': 'Your nodes could not be added to the network',
-    }), 400
+    }), 201
 
 
 

@@ -1,11 +1,25 @@
-from heimcoin.address import Address, get_public_key_obj, verify_signature
+import hashlib
+
+from heimcoin.address import get_public_key_obj, verify_signature
 from json import dumps as json_dumps
 from datetime import datetime
 from uuid import uuid4
+from heimcoin.db import read_item, write_item
 
-import hashlib
+def load_transactions_from_file(file_data):
+    transactions = []
+    for transaction in file_data:
+        transactions.append(Transaction(
+            transaction['sender_public_key'],
+            transaction['output_list'],
+            transaction['input_list'],
+            transaction['signature'],
+            transaction['timestamp'],
+            transaction['trnx'],
+        ))
+    return transactions
 
-__transaction_list = []
+__transaction_list = load_transactions_from_file(read_item('HEIMCOIN_TRANSACTION_POOL') or [])
 
 def get_transaction_list():
     return __transaction_list
@@ -15,6 +29,10 @@ def clear_transaction_list():
 
 def add_transaction(transaction):
     __transaction_list.append(transaction)
+    write_item(
+        'HEIMCOIN_TRANSACTION_POOL',
+        list(map(lambda t: t.get_data(True), __transaction_list))
+    )
     return __transaction_list
 
 def create_output(receiver_address, receiver_amount):
@@ -24,13 +42,21 @@ def create_output(receiver_address, receiver_amount):
         'otrnx': uuid4().hex,
     }
 
+def create_input(receiver_address, receiver_amount, otrnx):
+    return {
+        'receiver_address': receiver_address,
+        'receiver_amount': receiver_amount,
+        'otrnx': otrnx,
+        'intrnx': uuid4().hex,
+    }
+
 class Transaction:
     __data = {
         'trnx': None,
         'sender_public_key': None,
         'output_list': [],
         'input_list': [],
-        'time_stamp': None,
+        'timestamp': None,
         'signature': None,
     }
     __data_hash = None
@@ -43,7 +69,7 @@ class Transaction:
                 'sender_public_key': self.__data['sender_public_key'],
                 'output_list': self.__data['output_list'],
                 'input_list': self.__data['input_list'],
-                'time_stamp': self.__data['time_stamp'],
+                'timestamp': self.__data['timestamp'],
             }
         
         return {
@@ -51,7 +77,7 @@ class Transaction:
             'sender_public_key': self.__data['sender_public_key'],
             'output_list': self.__data['output_list'],
             'input_list': self.__data['input_list'],
-            'time_stamp': self.__data['time_stamp'],
+            'timestamp': self.__data['timestamp'],
             'signature': self.__data['signature'],
          }
 
@@ -59,13 +85,13 @@ class Transaction:
         self.__data_hash = hashlib.sha256(json_dumps(self.get_data()).encode()).hexdigest()
         return self.__data_hash
 
-    def __init__(self, sender_public_key, output_list, input_list, signature=''):
+    def __init__(self, sender_public_key, output_list, input_list, signature=None, time_stamp=None, trnx=None):
         self.__data = {
             'sender_public_key': sender_public_key,
             'output_list': output_list,
             'input_list': input_list,
-            'trnx': uuid4().hex,
-            'time_stamp': str(datetime.now()),
+            'trnx': trnx or uuid4().hex,
+            'timestamp': time_stamp or str(datetime.now()),
             'signature': signature
         }
         self.__public_key_obj = get_public_key_obj(sender_public_key)
@@ -94,3 +120,18 @@ class Transaction:
         output_list.extend(wallet_output_list)
 
         return output_list
+    
+    def is_transaction_output(self, wallet_address, otrnx):
+        for output in self.__data['output_list']:
+            if output['receiver_address'] == wallet_address and output['otrnx'] == otrnx:
+                return True, output, self.get_data(True)
+            
+        return False, None, None
+    
+    def is_transaction_input(self, wallet_address, otrnx):
+        for input in self.__data['input_list']:
+            if input['receiver_address'] == wallet_address and input['otrnx'] == otrnx:
+                return True, input, self.get_data(True)
+            
+        return False, None, None
+            

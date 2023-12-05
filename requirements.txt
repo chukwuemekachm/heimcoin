@@ -1,0 +1,6 @@
+Flask==3.0.0
+flask-helmet==1.0.0
+ecdsa==0.18.0
+python-socketio==5.10.0
+jsonschema==4.20.0
+

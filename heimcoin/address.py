@@ -1,11 +1,28 @@
+import hashlib
+import heimcoin.validation_schemas as validation_schemas
+
 from flask import Blueprint, json, request
 from ecdsa import NIST256p, SigningKey, VerifyingKey
 from ecdsa.util import randrange_from_seed__trytryagain
-
-import hashlib
 from json import dumps as json_dumps
+from heimcoin.decorators import validate_request
 
 __elliptic_curve = NIST256p
+
+def get_key_pair_from_sk(private_key_string):
+    private_key = SigningKey.from_string(bytearray.fromhex(private_key_string), __elliptic_curve)
+    public_key = private_key.verifying_key
+
+    address_hash = hashlib.blake2b(digest_size=16)
+    address_hash.update(str(public_key.to_string('compressed').hex()).encode())
+
+    return {
+        'private_key': private_key.to_string().hex(),
+        'public_key': public_key.to_string('compressed').hex(),
+        'address': f"H{address_hash.hexdigest()}",
+        'private_key_obj': private_key,
+        'public_key_obj': public_key,
+    }
 
 def get_public_key_obj(public_key):
     return VerifyingKey.from_string(bytearray.fromhex(public_key), curve=__elliptic_curve)
@@ -56,16 +73,9 @@ class Address:
 address_blueprint = Blueprint('address', __name__, url_prefix='/api/v1/address')
 
 @address_blueprint.route('/', methods = ['POST'])
-def generate_key_pair():
-    json_data = request.get_json(force=True)
-    
-    if (not json_data) or (not json_data['pass_phrase']):
-        return json.jsonify({
-            'success': False,
-            'key_pair': None,
-            'message': 'Provide a pass phrase to generate your heimcoin address',
-        }), 400
-    
+@validate_request(validation_schemas.derive_wallet_validation_schema)
+def derive_wallet_key_pair():
+    json_data = request.get_json(force=True)    
     address_keys = derive_pass_phrase_key_pair(json_data['pass_phrase'])
 
     return json.jsonify({
