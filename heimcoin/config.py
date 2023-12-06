@@ -1,4 +1,7 @@
 from os import environ
+from dotenv import load_dotenv
+
+load_dotenv()
 
 HEIM_COIN_SECRET=environ.get('HEIM_COIN_SECRET')
 HEIM_COIN_PRIVATE_KEY_PASS_PHRASE=environ.get('HEIM_COIN_PRIVATE_KEY_PASS_PHRASE')
