@@ -4,7 +4,6 @@ from heimcoin.address import get_public_key_obj, verify_signature
 from json import dumps as json_dumps
 from datetime import datetime
 from uuid import uuid4
-from heimcoin.db import read_item, write_item
 
 def load_transactions_from_file(file_data):
     transactions = []
@@ -19,7 +18,7 @@ def load_transactions_from_file(file_data):
         ))
     return transactions
 
-__transaction_list = load_transactions_from_file(read_item('HEIMCOIN_TRANSACTION_POOL') or [])
+__transaction_list = []
 
 def get_transaction_list():
     return __transaction_list
@@ -29,10 +28,6 @@ def clear_transaction_list():
 
 def add_transaction(transaction):
     __transaction_list.append(transaction)
-    write_item(
-        'HEIMCOIN_TRANSACTION_POOL',
-        list(map(lambda t: t.get_data(True), __transaction_list))
-    )
     return __transaction_list
 
 def create_output(receiver_address, receiver_amount):

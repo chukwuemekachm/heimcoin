@@ -1,6 +1,7 @@
 import hashlib
 
 from datetime import datetime
+from uuid import uuid4
 from json import dumps as json_dumps
 from heimcoin.network import get_node_address
 
@@ -15,8 +16,21 @@ class Block:
         'node_address': None,
     }
     __data_hash = None
+    __block_id = None
+    __next_block_id = None
 
-    def __init__(self, index, proof, previous_hash, transactions, miner_address, node_address=None, timestamp=None):
+    def __init__(
+            self,
+            index,
+            proof,
+            previous_hash,
+            transactions,
+            miner_address,
+            node_address=None,
+            timestamp=None,
+            block_id=None,
+            next_block_id=None,
+        ):
         self.__data = {
             'index': index,
             'timestamp': timestamp or str(datetime.now()),
@@ -26,6 +40,8 @@ class Block:
             'miner_address': miner_address,
             'node_address': node_address or get_node_address().wallet_address,
         }
+        self.__block_id = block_id
+        self.__next_block_id = next_block_id
         self.hash_block()
 
     def set_proof(self, proof):

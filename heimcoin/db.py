@@ -1,10 +1,13 @@
-import dbm
-
+from pymongo.mongo_client import MongoClient
+from pymongo.server_api import ServerApi
 from flask import current_app
 from json import dumps as json_dumps, loads as json_loads
 
 def get_db():
-    return dbm.open(current_app.config['DATABASE'], 'c')
+    return MongoClient(
+        ,
+        server_api=ServerApi('1')
+    )[current_app.config['HEIM_COIN_NET']]
 
 def write_item(key, item):
     db = get_db()

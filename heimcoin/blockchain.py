@@ -1,7 +1,7 @@
 import hashlib
 
 from flask import current_app, Blueprint, json, request
-from json import dumps as json_dumps
+from json import dumps as json_dumps, loads as json_loads
 from functools import reduce
 
 import heimcoin.validation_schemas as validation_schemas
@@ -9,14 +9,15 @@ from heimcoin.transaction import get_transaction_list, clear_transaction_list, T
 from heimcoin.address import derive_pass_phrase_key_pair, sign_message, get_key_pair_from_sk
 from heimcoin.block import Block
 from heimcoin.decorators import validate_request
-from heimcoin.db import read_item, write_item
+from heimcoin.database.block import get_chain_from_db, save_new_block_to_db
 
 def load_chain_from_file(file_data):
     chain = []
 
     for data in file_data:
+        decoded_data = json_loads(data.block_data)
         transactions = []
-        for transaction in data['transactions']:
+        for transaction in decoded_data['transactions']:
             transactions.append(Transaction(
                 transaction['sender_public_key'],
                 transaction['output_list'],
@@ -26,33 +27,34 @@ def load_chain_from_file(file_data):
                 transaction['trnx'],
             ))
         chain.append(Block(
-            data['index'],
-            data['proof'],
-            data['previous_block_hash'],
+            decoded_data['index'],
+            decoded_data['proof'],
+            decoded_data['previous_block_hash'],
             transactions,
-            data['miner_address'],
-            data['node_address'],
-            data['timestamp'],
+            decoded_data['miner_address'],
+            decoded_data['node_address'],
+            decoded_data['timestamp'],
+            data.id,
+            data.next_block_id,
         ))
     return chain
 
-
 class Blockchain:
-    __chain = load_chain_from_file(read_item('HEIMCOIN_CHAIN') or [])
+    __chain = load_chain_from_file(get_chain_from_db())
     __node_address = None
     __index_block_reward_address = 'H10000000000000000000000000000000'
 
     def mine_genesis_block(self):
         if not len(self.__chain):
-            self.__chain.append(
-                Block(
-                    1,
-                    0,
-                    None,
-                    [self.create_block_reward(self.__index_block_reward_address)],
-                    self.__index_block_reward_address
-                )
+            genesis_block = Block(
+                1,
+                0,
+                None,
+                [self.create_block_reward(self.__index_block_reward_address)],
+                self.__index_block_reward_address
             )
+            self.__chain.append(genesis_block)
+            save_new_block_to_db(genesis_block.get_data())
 
     def create_block_reward(self, miner_address):
         if self.__node_address is None:
@@ -115,8 +117,8 @@ class Blockchain:
         block.set_proof(proof)
 
         self.__chain.append(block)
-        write_item('HEIMCOIN_CHAIN', list(map(lambda b: b.get_data(True), self.__chain)))
         clear_transaction_list()
+        save_new_block_to_db(block.get_data())
 
         return block
     
